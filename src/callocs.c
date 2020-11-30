@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define __CALLOCS_IMPL
 #include "callocs.h"
 
 struct __meta_node
@@ -61,6 +60,9 @@ void *callocs_malloc(size_t size)
         new_next->next = next;
         node->size = size;
         node->next = new_next;
+
+        if (next != NULL)
+            next->prev = new_next;
     }
 
     node->allocated = true;
@@ -69,10 +71,11 @@ void *callocs_malloc(size_t size)
 
 void *callocs_сalloc(size_t num, size_t size)
 {
-    void *data = callocs_malloc(num * size);
+    size *= num;
+    void *data = callocs_malloc(size);
 
     if (data != NULL)
-        for (size_t i = 0; i < num * size; i++)
+        for (size_t i = 0; i < size; i++)
             *((char *)data + i) = '\0';
 
     return data;
@@ -123,7 +126,7 @@ void *callocs_realloc(void *ptr, size_t size)
 
                 for (unsigned int i = 0; i < node->size; i++)
                     ((char *)res)[i] = ((char *)(node + 1))[i];
-                
+
                 callocs_free(ptr);
                 return res;
             }
@@ -167,22 +170,37 @@ void callocs_free(void *ptr)
         {
             node->size += node->next->size + sizeof(struct __meta_node);
             node->next = node->next->next;
+
+            if (node->next != NULL)
+                node->next->prev = node;
         }
     }
 }
 
-int printf_heap_info(void)
+size_t callocs_get_max_free_space(void)
+{
+    unsigned int size = 0;
+    for (struct __meta_node *node = mem_pool; node != NULL; node = node->next)
+        if (!node->allocated && size < node->size)
+            size = node->size;
+    return (size_t)size;
+}
+
+int callocs_fprintf_heap_info(FILE *file)
 {
     int alloc_blocks_count = 0;
 
-    printf("Heap info:\n");
+    fprintf(file, "Heap info:\n");
     for (struct __meta_node *node = mem_pool; node != NULL; node = node->next)
     {
         if (node->allocated)
             alloc_blocks_count++;
-        printf("  %s block ", (node->allocated ? "allocated" : "free"));
-        printf("of size %u(%lu) with data pointer %p\n", node->size, node->size + sizeof(struct __meta_node), (void *)(node + 1));
+        fprintf(file, "  %s block ", (node->allocated ? "allocated" : "free"));
+        fprintf(file, "of size %u(%lu) with data pointer %p\n", node->size, node->size + sizeof(struct __meta_node), (void *)(node + 1));
     }
+
+    if (alloc_blocks_count > 0)
+        fprintf(file, "Heap efficiency: %.2f%% of actual data\n", 100.0f - 100.f * alloc_blocks_count * sizeof(struct __meta_node) / pool_size);
 
     return alloc_blocks_count;
 }
