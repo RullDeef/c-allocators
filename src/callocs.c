@@ -69,7 +69,7 @@ void *callocs_malloc(size_t size)
     return node + 1;
 }
 
-void *callocs_сalloc(size_t num, size_t size)
+void *callocs_calloc(size_t num, size_t size)
 {
     size *= num;
     void *data = callocs_malloc(size);
