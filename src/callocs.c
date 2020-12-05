@@ -160,6 +160,10 @@ void callocs_free(void *ptr)
         {
             node->prev->size += node->size + sizeof(struct __meta_node);
             node->prev->next = node->next;
+
+            if (node->next != NULL)
+                node->next->prev = node->prev;
+
             node = node->prev;
         }
         else
